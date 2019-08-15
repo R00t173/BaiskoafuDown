@@ -13,6 +13,7 @@ username = "your email here"    # email
 password = "your password here" # password
 media_quality(quality='medium') # set quality['high', 'low', 'medium']
 ASK_BEFORE_DOWNLOAD = True      # set 'False' to download without prompt
+IS_PRIMARY_DEVICE   = True	    # set 'True' only if you have premium subscription
 ```
 ### Usage
 This script requires Python 3.6 or later and the python3 requests module to work. To install this module, run this in your terminal: "python3 -m pip install requests"
