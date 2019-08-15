@@ -9,8 +9,10 @@ import baiskoafu_download_manager
 
 login_url   = "https://admin.baiskoafu.com/api/v1.92/user/login/"
 search_url  = "https://admin.baiskoafu.com/api/v1.92/search/"
+prmm_url	= "https://admin.baiskoafu.com/api/v1.92/user/change-primary-device/"
 VIDEO_CDN	= "https://dffhiy8lbgb51.cloudfront.net/"
 AUDIO_CDN   = "https://d1g98ytv3fry8t.cloudfront.net/"
+
 
 KEY_LEN = 32
 
@@ -35,8 +37,10 @@ def login(username, password, query=""):
     r = resp.post(login_url, data=AUTH)
 
     userinfo    = json.loads(r.text)
-    if "The password you entered is incorrect." in userinfo['message']:
+    
+    if "The password you entered is incorrect." in str(userinfo['message']):
         print("The password you entered is incorrect.")
+        baiskoafu_download_manager.wait(3)
         exit()
     
     if "Login Successful" in userinfo['message']:
@@ -45,7 +49,14 @@ def login(username, password, query=""):
         LAST_NAME   = userinfo['user']['last_name']
         TOKEN	    = userinfo['user']['access_token']
         DEVICE_ID	= userinfo['user']['device_id']
+        PRIMARY	    = userinfo['user']['subscription']
+        ID_AUTH     = {"Authorization": f"JWT {TOKEN}"}
+
         print(f"Hi, {FIRST_NAME} {LAST_NAME}")
+
+        if config.IS_PRIMARY_DEVICE and  str(PRIMARY) == "Premium":
+
+            primary = resp.patch(prmm_url, data={"device_id" : f"{DEVICE_ID}"}, headers=ID_AUTH)
 
         def search_engine():
 
@@ -58,9 +69,6 @@ def login(username, password, query=""):
             if search_query == "" or None:
                 search_engine()
             
-            ID_AUTH = {
-                "Authorization": f"JWT {TOKEN}"
-            }
             SEARCH_DATA = {
             "category_name": "All",
             "device_id": f"{DEVICE_ID}",
