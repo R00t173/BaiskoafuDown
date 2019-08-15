@@ -85,6 +85,7 @@ def get_ts_files(m3u8_url):
 
 def meter():
 
+    global file_size
     file_size = 0
     print("Collecting segments... This might take a while")
     for i in range(len(TS_LINKS)):
@@ -127,10 +128,15 @@ def download():
 
         for i in range(len(TS_LINKS)):
 
+            current_file_size = 0
+            for ts in os.listdir(TS_PATH):
+                if ts.endswith('.ts'): current_file_size += os.path.getsize(os.path.join(TS_PATH, ts))
+            
+
             ts_url = TS_LINKS[i]
             file_name = ts_url.split("/")[-1]
             try:
-                print(f"Downloading --- {ts_url[len(ts_url) - 20:len(ts_url)-3]}...", end='\r')
+                print(f"Downloading  ....  {round(current_file_size / 1024 / 1024, 2)} / {round(file_size)} MB", end='\r')
                 response = requests.get(ts_url,stream=True,verify=False)
             except Exception as e:
                 pass
