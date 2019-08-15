@@ -9,8 +9,8 @@ import baiskoafu_download_manager
 
 login_url   = "https://admin.baiskoafu.com/api/v1.92/user/login/"
 search_url  = "https://admin.baiskoafu.com/api/v1.92/search/"
-prmm_url	= "https://admin.baiskoafu.com/api/v1.92/user/change-primary-device/"
-VIDEO_CDN	= "https://dffhiy8lbgb51.cloudfront.net/"
+prmm_url    = "https://admin.baiskoafu.com/api/v1.92/user/change-primary-device/"
+VIDEO_CDN   = "https://dffhiy8lbgb51.cloudfront.net/"
 AUDIO_CDN   = "https://d1g98ytv3fry8t.cloudfront.net/"
 
 
