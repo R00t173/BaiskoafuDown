@@ -5,6 +5,7 @@ import os, sys
 import requests
 import tempfile
 import datetime
+import threading
 import urllib.request
 from time import sleep
 import multiprocessing.dummy as dummy
@@ -15,8 +16,8 @@ except: import http.client as httplib
 
 VERSION         = "1.0.0-alpha.1"
 CURRENT_PATH    = sys.path[0]
-TS_PATH	        = CURRENT_PATH + "\\CHUNKS"
-OUT_PATH	    = CURRENT_PATH + "\\OUTPUT"
+TS_PATH	        = os.path.join(CURRENT_PATH, "CHUNKS")
+OUT_PATH	    = os.path.join(CURRENT_PATH, "OUTPUT")
 TEMP_DIR        = tempfile.TemporaryDirectory(prefix="dump_" ,suffix="_Baiskoafu")
 TS_LINKS	    = []
 
@@ -82,25 +83,8 @@ def get_ts_files(m3u8_url):
     urllib.request.urlretrieve(m3u8_url, tmp_file)
     extract_ts_url(tmp_file, p)
 
+def remove_old_files():
 
-def meter():
-
-    global file_size
-    file_size = 0
-    print("Collecting segments... This might take a while")
-    for i in range(len(TS_LINKS)):
-
-        MBytes = float(1 << 20)
-        response = requests.head(TS_LINKS[i], allow_redirects=True)
-        size = response.headers.get('content-length', 0)
-        print('{:<10}{:<4}{:<10}: {:.2f} MB  Total : {} MB'.format('CHUNKS', i, 'FILE SIZE', int(size) / MBytes, round(file_size, 2)), end='\r')
-        file_size += int(size) / MBytes
-
-    print(f"\nTotal file size : {round(file_size, 2)} MB")
-
-def download():
-
-    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     old_chunks = [i for i in os.listdir(TS_PATH)]
     if len(old_chunks) >= 1:
         inp = input(f"Old files found!\n{TS_PATH}\nRemove? (Y/n) : ")
@@ -113,12 +97,42 @@ def download():
             print("Removing files ....", end='\r')
             for i in old_chunks: os.remove(i)
             os.chdir(CURRENT_PATH)
+
+def meter():
+
+    remove_old_files()
+    global file_size
+    print("Collecting segments... This might take a while")
+
+    chunk_size = []
+    def get_chunks(i):
+        
+        response = requests.head(TS_LINKS[i], allow_redirects=True)
+        size = response.headers.get('content-length', 0)
+        chunk_size.append(int(size))
+        # print('{:<10}{:<4}{:<10}: {:.2f} MB  Total : {} MB'.format('CHUNKS', i, 'FILE SIZE', int(size) / MBytes, round(file_size, 2)), end='\r')
+        # file_size += int(size) / MBytes
     
+    chunk_list = []
+
+    for i in range(len(TS_LINKS)):
+
+        t = threading.Thread(target=get_chunks, args=(i, ))
+        chunk_list.append(t)
+    
+    for i in chunk_list:
+        i.start()
+    for i in  chunk_list:
+        i.join()
+
+    MBytes = float(1 << 20)
+    file_size = int(sum(chunk_size)) / MBytes
+    print(f"\nTotal file size : {round(file_size, 2)} MB")
+
+def download():
+
+    urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
     meter()
-    # TODO Threading
-    # p=dummy.Pool(100)
-    # p.map(meter,range(0, 2))
-    # p.close(); p.join()
     if config.ASK_BEFORE_DOWNLOAD:
         d = input("Continue to download : (Y/n) : ")
     else:
@@ -126,17 +140,11 @@ def download():
 
     if d.lower() == 'y':
 
-        for i in range(len(TS_LINKS)):
-
-            current_file_size = 0
-            for ts in os.listdir(TS_PATH):
-                if ts.endswith('.ts'): current_file_size += os.path.getsize(os.path.join(TS_PATH, ts))
-            
+        def down_chunk(i):
 
             ts_url = TS_LINKS[i]
             file_name = ts_url.split("/")[-1]
             try:
-                print(f"Downloading  ....  {round(current_file_size / 1024 / 1024, 2)} / {round(file_size)} MB", end='\r')
                 response = requests.get(ts_url,stream=True,verify=False)
             except Exception as e:
                 pass
@@ -146,6 +154,21 @@ def download():
                 for chunk in response.iter_content(chunk_size=1024):
                     if chunk:
                         file.write(chunk)
+
+        down_chunk_list = []
+        for i in range(len(TS_LINKS)):
+
+            t = threading.Thread(target=down_chunk, args=(i, ))
+            down_chunk_list.append(t)
+        for i in down_chunk_list:
+            i.start()
+        for i in down_chunk_list:
+            current_file_size = 0
+            for ts in os.listdir(TS_PATH):
+                if ts.endswith('.ts'): current_file_size += os.path.getsize(os.path.join(TS_PATH, ts))
+            print(f"Downloading  ....  {round(current_file_size / 1024 / 1024, 2)} / {round(file_size)} MB", end='\r')
+            i.join()
+
         print()
                         
     else:
@@ -153,8 +176,8 @@ def download():
         wait(3)
         exit()
 
-    os.chdir(TS_PATH)
-    for i in old_chunks: os.remove(i)        
+    # os.chdir(TS_PATH)
+    # for i in old_chunks: os.remove(i)        
 
 def file_walker(path):
     file_list = []
